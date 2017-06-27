@@ -1,0 +1,23 @@
+---
+title: "H~2~O framework introduction for predictive analysis"
+output: html_document
+---
+
+## Exercise: Comparing Models
+In this exercise our objective will be building a model to identify customers most likely to accept a direct marketing offer.  
+
+I'll be using H~2~O flow, which runs on the browser and is designed to streamline the modelling process. It offers the same functionaliity as the non GUI H~2~O, as well as more insightful output. I'll be using the dataset I imported in the last step, but would import it again here for reproducibility reasons.  
+
+```{r include = FALSE, echo=FALSE}
+library(h2o)
+library(tidyverse)
+```
+
+```{r cache=TRUE}
+localH20 <- h2o.init(ip = "127.0.0.1", port = 54321)
+```
+
+The above starts the h~2~o server on the ip given address. That is where we import our data, prepare for modelling, and draw our model.  
+
+
+

@@ -24,11 +24,13 @@ user_marketData_sample %>%
   select(y, job) %>%
   sample_n(20)
 
-user_marketData_sample %>%
+(user_marketData_sample %>%
   group_by(y, job) %>%
-  tally() -> by_y_job
+  tally() -> by_y_job)
 
 View(by_y_job)
 
 ggplot(data = by_y_job, aes(x = job, y = n, fill = y)) +
   geom_bar(stat = "identity", position = "dodge")
+
+
