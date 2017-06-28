@@ -13,11 +13,75 @@ library(h2o)
 library(tidyverse)
 ```
 
-```{r cache=TRUE}
+```{r warning=FALSE}
 localH20 <- h2o.init(ip = "127.0.0.1", port = 54321)
 ```
 
 The above starts the h~2~o server on the ip given address. That is where we import our data, prepare for modelling, and draw our model.  
 
+In the previous exercise on H~2~O Flow, I created a neural net and GBM model, which I compared for performance and predicted the *y* column. In this next exercise which I'll be doing here with H~2~O as well, I'll be creating a classifier to know if a customer would accept a beneficial offer, or decline. I'll be using a Logistic Regression model for this classifier. Also, I'll be predicting how long a call would last.
+
+
+### Upload file, and explore   
+
+```{r cache=TRUE, warning=FALSE, include=FALSE}
+# dataUrl = "https://raw.githubusercontent.com/QUT-BDA-MOOC/FLbigdataStats/master/bank_customer_data.csv"
+# download.file(url <- dataUrl, destfile = "BankCustomerData.csv")
+user_data <- h2o.uploadFile("BankCustomerData.csv", destination_frame = "", parse = T, header = T,
+                                   sep = ",", na.strings = c("unknown"), progressBar = FALSE,
+                                   parse_type = "CSV" )
+```
+
+``` {r warning=FALSE, cache=TRUE}
+summary(user_data)
+class(user_data)
+head(user_data)
+table(as.data.frame(user_data)$y)
+h2o.describe(user_data)
+
+# Gets the index of a column, takes the columnNames, and the column to find the index.
+getColumnIndex <- function(frameColumnNames, column) {
+  index = frameColumnNames %in% column
+  if (any(index)) {
+    return(which(index))
+  } else {
+    return(NULL)
+  }
+}
+
+# Exclude the length column from the data set
+user_data_predict_offer_accept <- user_data[, -11] # excluding call length
+(split_frame_offer <- h2o.splitFrame(user_data_predict_offer_accept, ratios = 0.75))
+train_frame_offer <- split_frame_offer[[1]]
+test_frame_offer <- split_frame_offer[[2]]
+(frame_column_names_offer <- colnames(train_frame_offer))
+outcomeIndex = getColumnIndex(frame_column_names_offer, "y")
+predictorsIndices <- (1:length(frame_column_names_offer))[-outcomeIndex]
+
+offer_glm <- h2o.glm(x=predictorsIndices, y = outcomeIndex, training_frame = train_frame, 
+                     validation_frame = test_frame, max_iterations = 100, solver = "L_BFGS", 
+                     family = "binomial", alpha = 1, intercept = T)
+                      
+
+user_data_predict_call_length <- user_data[, -21] # excluding offer accept
+(split_frame_call <- h2o.splitFrame(user_data_predict_call_length, ratios = 0.75))
+train_frame_call <- split_frame_call[[1]]
+test_frame_call <- split_frame_call[[2]]
+(frame_column_names_call <- colnames(train_frame_call))
+(outcomeIndex = getColumnIndex(frame_column_names_call, "length"))
+(predictorsIndices <- (1:length(frame_column_names_call))[-outcomeIndex])
+
+boxplot(log((as.vector(train_frame_call$length)))) 
+hist(log((as.vector(train_frame_call$length))))
+mean(as.vector(train_frame_call$length))
+# could normalized the values before this normalizing
+call_glm <- h2o.glm(x=predictorsIndices, y = outcomeIndex, training_frame = train_frame_call, 
+                    validation_frame = test_frame_call,max_iterations = 100, solver = "L_BFGS", 
+                    family = "gaussian", alpha = 1,intercept = T)
+
+summary(offer_glm)
+summary(call_glm)
+
+```
 
 
