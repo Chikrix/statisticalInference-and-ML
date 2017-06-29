@@ -128,12 +128,12 @@ $(document).ready(function () {
 <pre><code>##  Connection successful!
 ## 
 ## R is connected to the H2O cluster: 
-##     H2O cluster uptime:         4 hours 33 minutes 
+##     H2O cluster uptime:         22 minutes 45 seconds 
 ##     H2O cluster version:        3.10.5.2 
-##     H2O cluster version age:    7 days, 18 hours and 14 minutes  
-##     H2O cluster name:           H2O_started_from_R_andeladeveloper_yjq204 
+##     H2O cluster version age:    9 days  
+##     H2O cluster name:           H2O_started_from_R_andeladeveloper_xdo989 
 ##     H2O cluster total nodes:    1 
-##     H2O cluster total memory:   1.65 GB 
+##     H2O cluster total memory:   1.61 GB 
 ##     H2O cluster total cores:    4 
 ##     H2O cluster allowed cores:  4 
 ##     H2O cluster healthy:        TRUE 
@@ -143,6 +143,562 @@ $(document).ready(function () {
 ##     H2O Internal Security:      FALSE 
 ##     R Version:                  R version 3.4.0 (2017-04-21)</code></pre>
 <p>The above starts the h<sub>2</sub>o server on the ip given address. That is where we import our data, prepare for modelling, and draw our model.</p>
+<p>In the previous exercise on H<sub>2</sub>O Flow, I created a neural net and GBM model, which I compared for performance and predicted the <em>y</em> column. In this next exercise which I’ll be doing here with H<sub>2</sub>O as well, I’ll be creating a classifier to know if a customer would accept a beneficial offer, or decline. I’ll be using a Logistic Regression model for this classifier. Also, I’ll be predicting how long a call would last.</p>
+<div id="upload-file-and-explore" class="section level3">
+<h3>Upload file, and explore</h3>
+<pre class="r"><code>summary(user_data)</code></pre>
+<pre><code>##  housing        job                 day      
+##  yes    :16781  Lawyer       :8139  thu:6735 
+##  no     :14592  Self-employed:7170  mon:6637 
+##  unknown:  754  Driver       :5258  tue:6387 
+##                 Gardener     :3107  wed:6236 
+##                 Plumber      :2272  fri:6132 
+##                 Librarian    :1346           
+##  qualification                   month      location         
+##  other                    :9451  may:10765  Inner.city:25409 
+##  Bachelour.degree         :7410  jul: 5554  suburban  : 6715 
+##  Higher.school.certificate:4786  aug: 4788  country   :    3 
+##  doctorate                :4063  jun: 4183                   
+##  highschool.certificate   :3279  nov: 3187                   
+##  TAFE                     :1783  apr: 2064                   
+##  online.banking        checking.account prev.sales        year.contact    
+##  inactive      :26436  yes:20410        Min.   :0.00000   Min.   : 0.000  
+##  active        : 4937  no :11717        1st Qu.:0.00000   1st Qu.: 1.000  
+##  not.registered:  754                   Median :0.00000   Median : 2.000  
+##                                         Mean   :0.07013   Mean   : 2.558  
+##                                         3rd Qu.:0.00000   3rd Qu.: 3.000  
+##                                         Max.   :4.00000   Max.   :55.000  
+##  length           central.interest.rate employment.rate 
+##  Min.   :   0.0   Min.   :-0.048        Min.   :-3.800  
+##  1st Qu.: 199.1   1st Qu.: 2.569        1st Qu.:-1.102  
+##  Median : 350.8   Median : 5.465        Median : 3.146  
+##  Mean   : 516.6   Mean   : 4.621        Mean   : 1.620  
+##  3rd Qu.: 625.7   3rd Qu.: 6.015        3rd Qu.: 3.496  
+##  Max.   :9480.0   Max.   : 7.695        Max.   : 3.800  
+##  customer.satisfaction price.index      credit.rating      
+##  Satisfactory:27704    Min.   : 99.21   satisfactory:19487 
+##  High        : 3360    1st Qu.:106.25   poor        : 9040 
+##  Low         : 1063    Median :107.64   excellent   : 3539 
+##                        Mean   :107.64   unknown     :   61 
+##                        3rd Qu.:109.02                      
+##                        Max.   :116.09                      
+##  age             staff_total     confidence.index emails.month    
+##  Min.   :15.00   Min.   :14801   Min.   : 61.72   Min.   :0.0000  
+##  1st Qu.:32.00   1st Qu.:15306   1st Qu.: 83.42   1st Qu.:0.0000  
+##  Median :38.00   Median :15585   Median : 88.01   Median :1.0000  
+##  Mean   :40.02   Mean   :15501   Mean   : 90.04   Mean   :0.6757  
+##  3rd Qu.:47.00   3rd Qu.:15673   3rd Qu.: 98.45   3rd Qu.:1.0000  
+##  Max.   :94.00   Max.   :15820   Max.   :124.61   Max.   :8.0000  
+##  y         
+##  no :27255 
+##  yes: 4872 
+##            
+##            
+##            
+## </code></pre>
+<pre class="r"><code>class(user_data)</code></pre>
+<pre><code>## [1] &quot;H2OFrame&quot;</code></pre>
+<pre class="r"><code>head(user_data)</code></pre>
+<pre><code>##   housing      job day             qualification month   location
+## 1      no   Lawyer tue                     other   aug Inner.city
+## 2      no   Driver thu Higher.school.certificate   may Inner.city
+## 3      no Gardener wed          Bachelour.degree   may Inner.city
+## 4     yes   Driver mon                     other   may Inner.city
+## 5     yes   Lawyer tue                     other   jun Inner.city
+## 6      no   Lawyer fri          Bachelour.degree   may Inner.city
+##   online.banking checking.account prev.sales year.contact length
+## 1       inactive              yes          0            4    452
+## 2       inactive              yes          0            3    129
+## 3       inactive               no          0            3    329
+## 4       inactive               no          0            1    272
+## 5       inactive               no          0            3    513
+## 6         active               no          0            6    163
+##   central.interest.rate employment.rate customer.satisfaction price.index
+## 1                 5.674            3.60          Satisfactory    106.1952
+## 2                 1.378           -1.10          Satisfactory    107.5944
+## 3                 6.654            3.35          Satisfactory    102.5752
+## 4                 2.321           -1.00          Satisfactory    105.8844
+## 5                 5.379            3.50          Satisfactory    112.6620
+## 6                 2.670           -1.20          Satisfactory    107.5644
+##   credit.rating age staff_total confidence.index emails.month  y
+## 1  satisfactory  51       15689           106.02            0 no
+## 2  satisfactory  27       15315            76.23            1 no
+## 3  satisfactory  56       15589           100.28            1 no
+## 4          poor  34       15303            76.90            0 no
+## 5  satisfactory  56       15651            90.07            0 no
+## 6          poor  35       15311            79.65            0 no</code></pre>
+<pre class="r"><code>table(as.data.frame(user_data)$y)</code></pre>
+<pre><code>## 
+##    no   yes 
+## 27255  4872</code></pre>
+<pre class="r"><code>h2o.describe(user_data)</code></pre>
+<pre><code>##                    Label Type Missing Zeros PosInf NegInf        Min
+## 1                housing enum       0 14592      0      0     0.0000
+## 2                    job enum       0   835      0      0     0.0000
+## 3                    day enum       0  6132      0      0     0.0000
+## 4          qualification enum       0  7410      0      0     0.0000
+## 5                  month enum       0  2064      0      0     0.0000
+## 6               location enum       0 25409      0      0     0.0000
+## 7         online.banking enum       0  4937      0      0     0.0000
+## 8       checking.account enum       0 11717      0      0     0.0000
+## 9             prev.sales  int       0 30974      0      0     0.0000
+## 10          year.contact  int       0  4664      0      0     0.0000
+## 11                length  int       0     3      0      0     0.0000
+## 12 central.interest.rate real       0     0      0      0    -0.0480
+## 13       employment.rate real       0     0      0      0    -3.8000
+## 14 customer.satisfaction enum       0  3360      0      0     0.0000
+## 15           price.index real       0     0      0      0    99.2144
+## 16         credit.rating enum       0  3539      0      0     0.0000
+## 17                   age  int       0     0      0      0    15.0000
+## 18           staff_total  int       0     0      0      0 14801.0000
+## 19      confidence.index real       0     0      0      0    61.7200
+## 20          emails.month  int       0 13782      0      0     0.0000
+## 21                     y enum       0 27255      0      0     0.0000
+##           Max         Mean       Sigma Cardinality
+## 1      2.0000           NA          NA           3
+## 2     11.0000           NA          NA          12
+## 3      4.0000           NA          NA           5
+## 4      7.0000           NA          NA           8
+## 5      9.0000           NA          NA          10
+## 6      2.0000           NA          NA           3
+## 7      2.0000           NA          NA           3
+## 8      1.0000 6.352912e-01   0.4813559           2
+## 9      4.0000 7.012793e-02   0.4120682          NA
+## 10    55.0000 2.558253e+00   2.8975145          NA
+## 11  9480.0000 5.166318e+02 533.7766565          NA
+## 12     7.6950 4.621477e+00   1.8015790          NA
+## 13     3.8000 1.619901e+00   2.3587717          NA
+## 14     2.0000           NA          NA           3
+## 15   116.0908 1.076440e+02   2.0569599          NA
+## 16     3.0000           NA          NA           4
+## 17    94.0000 4.001637e+01  10.5786827          NA
+## 18 15820.0000 1.550055e+04 218.7509520          NA
+## 19   124.6100 9.004313e+01   9.9294315          NA
+## 20     8.0000 6.756933e-01   0.7029799          NA
+## 21     1.0000 1.516481e-01   0.3586851           2</code></pre>
+<pre class="r"><code># Gets the index of a column, takes the columnNames, and the column to find the index.
+getColumnIndex &lt;- function(frameColumnNames, column) {
+  index = frameColumnNames %in% column
+  if (any(index)) {
+    return(which(index))
+  } else {
+    return(NULL)
+  }
+}
+
+# Exclude the length column from the data set
+user_data_predict_offer_accept &lt;- user_data[, -11] # excluding call length
+(split_frame_offer &lt;- h2o.splitFrame(user_data_predict_offer_accept, ratios = 0.75))</code></pre>
+<pre><code>## [[1]]
+##   housing         job day    qualification month   location online.banking
+## 1      no    Gardener wed Bachelour.degree   may Inner.city       inactive
+## 2     yes      Driver mon            other   may Inner.city       inactive
+## 3      no Electrician thu            other   aug Inner.city         active
+## 4      no    Gardener tue Bachelour.degree   may Inner.city       inactive
+## 5      no      Driver fri        doctorate   nov Inner.city         active
+## 6      no    Gardener mon Bachelour.degree   aug Inner.city       inactive
+##   checking.account prev.sales year.contact central.interest.rate
+## 1               no          0            3                 6.654
+## 2               no          0            1                 2.321
+## 3              yes          0            2                 2.060
+## 4               no          0            1                 5.225
+## 5              yes          1            2                 1.604
+## 6              yes          0            1                 7.170
+##   employment.rate customer.satisfaction price.index credit.rating age
+## 1            3.35          Satisfactory    102.5752  satisfactory  56
+## 2           -1.00          Satisfactory    105.8844          poor  34
+## 3           -2.95          Satisfactory    107.2108  satisfactory  46
+## 4            3.35          Satisfactory    108.6652  satisfactory  32
+## 5           -0.35                   Low    110.5636          poor  26
+## 6            3.40          Satisfactory    105.3252  satisfactory  46
+##   staff_total confidence.index emails.month  y
+## 1       15589           100.28            1 no
+## 2       15303            76.90            0 no
+## 3       15188           109.65            0 no
+## 4       15596            98.41            1 no
+## 5       14907            68.15            2 no
+## 6       15672            96.87            1 no
+## 
+## [24037 rows x 20 columns] 
+## 
+## [[2]]
+##   housing      job day             qualification month   location
+## 1      no   Lawyer tue                     other   aug Inner.city
+## 2      no   Driver thu Higher.school.certificate   may Inner.city
+## 3     yes   Lawyer tue                     other   jun Inner.city
+## 4      no   Lawyer fri          Bachelour.degree   may Inner.city
+## 5     yes Academic thu                 doctorate   aug Inner.city
+## 6      no   Lawyer wed          Bachelour.degree   may Inner.city
+##   online.banking checking.account prev.sales year.contact
+## 1       inactive              yes          0            4
+## 2       inactive              yes          0            3
+## 3       inactive               no          0            3
+## 4         active               no          0            6
+## 5         active              yes          0            1
+## 6       inactive              yes          0            0
+##   central.interest.rate employment.rate customer.satisfaction price.index
+## 1                 5.674             3.6          Satisfactory    106.1952
+## 2                 1.378            -1.1          Satisfactory    107.5944
+## 3                 5.379             3.5          Satisfactory    112.6620
+## 4                 2.670            -1.2          Satisfactory    107.5644
+## 5                 5.783             3.7          Satisfactory    107.5752
+## 6                 1.690            -1.3          Satisfactory    106.8244
+##   credit.rating age staff_total confidence.index emails.month   y
+## 1  satisfactory  51       15689           106.02            0  no
+## 2  satisfactory  27       15315            76.23            1  no
+## 3  satisfactory  56       15651            90.07            0  no
+## 4          poor  35       15311            79.65            0  no
+## 5  satisfactory  56       15668            98.91            0 yes
+## 6  satisfactory  33       15325            79.83            1  no
+## 
+## [8090 rows x 20 columns]</code></pre>
+<pre class="r"><code>train_frame_offer &lt;- split_frame_offer[[1]]
+test_frame_offer &lt;- split_frame_offer[[2]]
+(frame_column_names_offer &lt;- colnames(train_frame_offer))</code></pre>
+<pre><code>##  [1] &quot;housing&quot;               &quot;job&quot;                  
+##  [3] &quot;day&quot;                   &quot;qualification&quot;        
+##  [5] &quot;month&quot;                 &quot;location&quot;             
+##  [7] &quot;online.banking&quot;        &quot;checking.account&quot;     
+##  [9] &quot;prev.sales&quot;            &quot;year.contact&quot;         
+## [11] &quot;central.interest.rate&quot; &quot;employment.rate&quot;      
+## [13] &quot;customer.satisfaction&quot; &quot;price.index&quot;          
+## [15] &quot;credit.rating&quot;         &quot;age&quot;                  
+## [17] &quot;staff_total&quot;           &quot;confidence.index&quot;     
+## [19] &quot;emails.month&quot;          &quot;y&quot;</code></pre>
+<pre class="r"><code>outcomeIndex = getColumnIndex(frame_column_names_offer, &quot;y&quot;)
+predictorsIndices &lt;- (1:length(frame_column_names_offer))[-outcomeIndex]
+
+offer_glm &lt;- h2o.glm(x=predictorsIndices, y = outcomeIndex, training_frame = train_frame_offer, 
+                     validation_frame = test_frame_offer, max_iterations = 100, solver = &quot;L_BFGS&quot;, 
+                     family = &quot;binomial&quot;, alpha = 1, intercept = T)</code></pre>
+<pre><code>## 
+  |                                                                       
+  |                                                                 |   0%
+  |                                                                       
+  |=====                                                            |   8%
+  |                                                                       
+  |=================================================================| 100%</code></pre>
+<pre class="r"><code>user_data_predict_call_length &lt;- user_data[, -21] # excluding offer accept
+(split_frame_call &lt;- h2o.splitFrame(user_data_predict_call_length, ratios = 0.75))</code></pre>
+<pre><code>## [[1]]
+##   housing      job day             qualification month   location
+## 1      no   Lawyer tue                     other   aug Inner.city
+## 2      no   Driver thu Higher.school.certificate   may Inner.city
+## 3      no Gardener wed          Bachelour.degree   may Inner.city
+## 4     yes   Driver mon                     other   may Inner.city
+## 5     yes   Lawyer tue                     other   jun Inner.city
+## 6      no   Lawyer fri          Bachelour.degree   may Inner.city
+##   online.banking checking.account prev.sales year.contact length
+## 1       inactive              yes          0            4    452
+## 2       inactive              yes          0            3    129
+## 3       inactive               no          0            3    329
+## 4       inactive               no          0            1    272
+## 5       inactive               no          0            3    513
+## 6         active               no          0            6    163
+##   central.interest.rate employment.rate customer.satisfaction price.index
+## 1                 5.674            3.60          Satisfactory    106.1952
+## 2                 1.378           -1.10          Satisfactory    107.5944
+## 3                 6.654            3.35          Satisfactory    102.5752
+## 4                 2.321           -1.00          Satisfactory    105.8844
+## 5                 5.379            3.50          Satisfactory    112.6620
+## 6                 2.670           -1.20          Satisfactory    107.5644
+##   credit.rating age staff_total confidence.index emails.month
+## 1  satisfactory  51       15689           106.02            0
+## 2  satisfactory  27       15315            76.23            1
+## 3  satisfactory  56       15589           100.28            1
+## 4          poor  34       15303            76.90            0
+## 5  satisfactory  56       15651            90.07            0
+## 6          poor  35       15311            79.65            0
+## 
+## [24166 rows x 20 columns] 
+## 
+## [[2]]
+##   housing           job day             qualification month   location
+## 1     yes        Lawyer fri                 doctorate   aug Inner.city
+## 2     yes        Lawyer mon                     other   may Inner.city
+## 3     yes        Lawyer fri          Bachelour.degree   may Inner.city
+## 4      no     Librarian tue    highschool.certificate   may Inner.city
+## 5      no Self-employed mon Higher.school.certificate   may Inner.city
+## 6      no Self-employed mon Higher.school.certificate   jul Inner.city
+##   online.banking checking.account prev.sales year.contact length
+## 1       inactive              yes          0            0    132
+## 2         active              yes          0            1   1273
+## 3       inactive              yes          0            2    214
+## 4       inactive               no          0            3    110
+## 5       inactive               no          0            3    337
+## 6         active              yes          0            2    412
+##   central.interest.rate employment.rate customer.satisfaction price.index
+## 1                 5.535            3.80          Satisfactory    106.1952
+## 2                 2.089           -1.10          Satisfactory    107.9144
+## 3                 6.046            3.40          Satisfactory    108.4452
+## 4                 6.092            3.35          Satisfactory    108.9152
+## 5                 5.860            3.15          Satisfactory    108.2752
+## 6                 5.433            3.70          Satisfactory    108.1944
+##   credit.rating age staff_total confidence.index emails.month
+## 1  satisfactory  34       15673            97.39            0
+## 2     excellent  48       15314            77.46            0
+## 3  satisfactory  56       15728            99.80            1
+## 4  satisfactory  56       15592           102.38            0
+## 5  satisfactory  41       15585           101.33            0
+## 6          poor  26       15658            83.47            0
+## 
+## [7961 rows x 20 columns]</code></pre>
+<pre class="r"><code>train_frame_call &lt;- split_frame_call[[1]]
+test_frame_call &lt;- split_frame_call[[2]]
+(frame_column_names_call &lt;- colnames(train_frame_call))</code></pre>
+<pre><code>##  [1] &quot;housing&quot;               &quot;job&quot;                  
+##  [3] &quot;day&quot;                   &quot;qualification&quot;        
+##  [5] &quot;month&quot;                 &quot;location&quot;             
+##  [7] &quot;online.banking&quot;        &quot;checking.account&quot;     
+##  [9] &quot;prev.sales&quot;            &quot;year.contact&quot;         
+## [11] &quot;length&quot;                &quot;central.interest.rate&quot;
+## [13] &quot;employment.rate&quot;       &quot;customer.satisfaction&quot;
+## [15] &quot;price.index&quot;           &quot;credit.rating&quot;        
+## [17] &quot;age&quot;                   &quot;staff_total&quot;          
+## [19] &quot;confidence.index&quot;      &quot;emails.month&quot;</code></pre>
+<pre class="r"><code>(outcomeIndex = getColumnIndex(frame_column_names_call, &quot;length&quot;))</code></pre>
+<pre><code>## [1] 11</code></pre>
+<pre class="r"><code>(predictorsIndices &lt;- (1:length(frame_column_names_call))[-outcomeIndex])</code></pre>
+<pre><code>##  [1]  1  2  3  4  5  6  7  8  9 10 12 13 14 15 16 17 18 19 20</code></pre>
+<pre class="r"><code># could normalized the values before this normalizing
+call_glm &lt;- h2o.glm(x=predictorsIndices, y = outcomeIndex, training_frame = train_frame_call, 
+                    validation_frame = test_frame_call,max_iterations = 100, solver = &quot;L_BFGS&quot;, 
+                    family = &quot;gaussian&quot;, alpha = 1,intercept = T)</code></pre>
+<pre><code>## 
+  |                                                                       
+  |                                                                 |   0%
+  |                                                                       
+  |=                                                                |   1%
+  |                                                                       
+  |==============================================================   |  95%
+  |                                                                       
+  |=================================================================| 100%</code></pre>
+<pre class="r"><code>summary(offer_glm)</code></pre>
+<pre><code>## Model Details:
+## ==============
+## 
+## H2OBinomialModel: glm
+## Model Key:  GLM_model_R_1498727643186_10 
+## GLM Model: summary
+##     family  link             regularization number_of_predictors_total
+## 1 binomial logit Lasso (lambda = 1.049E-4 )                         62
+##   number_of_active_predictors number_of_iterations  training_frame
+## 1                          50                   49 RTMP_sid_9f20_4
+## 
+## H2OBinomialMetrics: glm
+## ** Reported on training data. **
+## 
+## MSE:  0.1107377
+## RMSE:  0.3327727
+## LogLoss:  0.3726619
+## Mean Per-Class Error:  0.3308422
+## AUC:  0.7130627
+## Gini:  0.4261254
+## R^2:  0.143064
+## Residual Deviance:  17915.35
+## AIC:  18017.35
+## 
+## Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
+##           no  yes    Error         Rate
+## no     18226 2146 0.105341  =2146/20372
+## yes     2039 1626 0.556344   =2039/3665
+## Totals 20265 3772 0.174107  =4185/24037
+## 
+## Maximum Metrics: Maximum metrics at their respective thresholds
+##                         metric threshold    value idx
+## 1                       max f1  0.223015 0.437273 210
+## 2                       max f2  0.090159 0.497325 335
+## 3                 max f0point5  0.309182 0.463406 171
+## 4                 max accuracy  0.518123 0.860257  90
+## 5                max precision  0.899482 1.000000   0
+## 6                   max recall  0.033648 1.000000 398
+## 7              max specificity  0.899482 1.000000   0
+## 8             max absolute_mcc  0.253087 0.342034 195
+## 9   max min_per_class_accuracy  0.115384 0.651875 294
+## 10 max mean_per_class_accuracy  0.157071 0.672204 251
+## 
+## Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
+## H2OBinomialMetrics: glm
+## ** Reported on validation data. **
+## 
+## MSE:  0.1099748
+## RMSE:  0.3316245
+## LogLoss:  0.3703962
+## Mean Per-Class Error:  0.3262753
+## AUC:  0.7075274
+## Gini:  0.4150548
+## R^2:  0.1336266
+## Residual Deviance:  5993.01
+## AIC:  6095.01
+## 
+## Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
+##          no  yes    Error        Rate
+## no     6178  705 0.102426   =705/6883
+## yes     664  543 0.550124   =664/1207
+## Totals 6842 1248 0.169221  =1369/8090
+## 
+## Maximum Metrics: Maximum metrics at their respective thresholds
+##                         metric threshold    value idx
+## 1                       max f1  0.231027 0.442363 209
+## 2                       max f2  0.109683 0.487935 303
+## 3                 max f0point5  0.259251 0.448458 197
+## 4                 max accuracy  0.488576 0.862052  98
+## 5                max precision  0.912302 1.000000   0
+## 6                   max recall  0.039378 1.000000 397
+## 7              max specificity  0.912302 1.000000   0
+## 8             max absolute_mcc  0.247728 0.345587 202
+## 9   max min_per_class_accuracy  0.114526 0.642916 295
+## 10 max mean_per_class_accuracy  0.171394 0.679056 241
+## 
+## Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
+## 
+## 
+## Scoring History: 
+##             timestamp   duration iteration negative_log_likelihood
+## 1 2017-06-29 10:36:51  0.000 sec         0             10263.20635
+## 2 2017-06-29 10:36:51  0.039 sec         1              9294.65211
+## 3 2017-06-29 10:36:51  0.049 sec         2              9207.27808
+## 4 2017-06-29 10:36:52  0.062 sec         3              9143.88267
+## 5 2017-06-29 10:36:52  0.073 sec         4              9101.82153
+##   objective
+## 1   0.42698
+## 2   0.38683
+## 3   0.38323
+## 4   0.38067
+## 5   0.37895
+## 
+## ---
+##              timestamp   duration iteration negative_log_likelihood
+## 45 2017-06-29 10:36:52  0.455 sec        44              8958.97554
+## 46 2017-06-29 10:36:52  0.467 sec        45              8958.92247
+## 47 2017-06-29 10:36:52  0.508 sec        46              8958.89017
+## 48 2017-06-29 10:36:52  0.515 sec        47              8958.26234
+## 49 2017-06-29 10:36:52  0.522 sec        48              8957.58799
+## 50 2017-06-29 10:36:52  0.530 sec        49              8957.50360
+##    objective
+## 45   0.37336
+## 46   0.37336
+## 47   0.37336
+## 48   0.37334
+## 49   0.37332
+## 50   0.37331
+## 
+## Variable Importances: (Extract with `h2o.varimp`) 
+## =================================================
+## 
+## Standardized Coefficient Magnitudes: standardized coefficient magnitudes
+##                        names coefficients sign
+## 1  customer.satisfaction.Low     0.849005  POS
+## 2                  month.may     0.571651  NEG
+## 3                staff_total     0.559277  NEG
+## 4 customer.satisfaction.High     0.488654  NEG
+## 5                  month.mar     0.426412  POS
+## 
+## ---
+##                            names coefficients sign
+## 57              location.country     0.000000  POS
+## 58       online.banking.inactive     0.000000  POS
+## 59 online.banking.not.registered     0.000000  POS
+## 60               housing.unknown     0.000000  POS
+## 61                   price.index     0.000000  POS
+## 62                           age     0.000000  POS</code></pre>
+<pre class="r"><code>summary(call_glm)</code></pre>
+<pre><code>## Model Details:
+## ==============
+## 
+## H2ORegressionModel: glm
+## Model Key:  GLM_model_R_1498727643186_13 
+## GLM Model: summary
+##     family     link            regularization number_of_predictors_total
+## 1 gaussian identity Lasso (lambda = 0.03539 )                         62
+##   number_of_active_predictors number_of_iterations  training_frame
+## 1                          57                  325 RTMP_sid_9f20_8
+## 
+## H2ORegressionMetrics: glm
+## ** Reported on training data. **
+## 
+## MSE:  276914.6
+## RMSE:  526.2268
+## MAE:  343.7725
+## RMSLE:  NaN
+## Mean Residual Deviance :  276914.6
+## R^2 :  0.01627593
+## Null Deviance :6802637978
+## Null D.o.F. :24165
+## Residual Deviance :6691918752
+## Residual D.o.F. :24108
+## AIC :371533.5
+## 
+## 
+## H2ORegressionMetrics: glm
+## ** Reported on validation data. **
+## 
+## MSE:  292647.5
+## RMSE:  540.969
+## MAE:  346.6671
+## RMSLE:  1.005772
+## Mean Residual Deviance :  292647.5
+## R^2 :  0.008848587
+## Null Deviance :2350640843
+## Null D.o.F. :7960
+## Residual Deviance :2329766584
+## Residual D.o.F. :7903
+## AIC :122913.2
+## 
+## 
+## 
+## 
+## Scoring History: 
+##             timestamp   duration iteration negative_log_likelihood
+## 1 2017-06-29 10:36:53  0.000 sec         0        6802637977.92788
+## 2 2017-06-29 10:36:53  0.029 sec         1        6764909054.92035
+## 3 2017-06-29 10:36:53  0.032 sec         2        6738400844.51682
+## 4 2017-06-29 10:36:53  0.037 sec         3        6731062927.88484
+## 5 2017-06-29 10:36:53  0.042 sec         4        6714238072.96797
+##      objective
+## 1 281496.23347
+## 2 279938.59287
+## 3 278846.72658
+## 4 278545.85458
+## 5 277858.76566
+## 
+## ---
+##               timestamp   duration iteration negative_log_likelihood
+## 321 2017-06-29 10:36:57  3.316 sec       320        6691919274.36320
+## 322 2017-06-29 10:36:57  3.330 sec       321        6691919101.76090
+## 323 2017-06-29 10:36:57  3.333 sec       322        6691918901.55897
+## 324 2017-06-29 10:36:57  3.348 sec       323        6691918725.50765
+## 325 2017-06-29 10:36:57  3.351 sec       324        6691918525.92160
+## 326 2017-06-29 10:36:57  3.353 sec       325        6691918525.92160
+##        objective
+## 321 276960.02020
+## 322 276960.01349
+## 323 276960.00714
+## 324 276960.00036
+## 325 276959.99398
+## 326 276959.99398
+## 
+## Variable Importances: (Extract with `h2o.varimp`) 
+## =================================================
+## 
+## Standardized Coefficient Magnitudes: standardized coefficient magnitudes
+##                   names coefficients sign
+## 1             month.dec   130.243407  POS
+## 2             month.apr    82.767269  POS
+## 3             month.aug    81.275916  NEG
+## 4 credit.rating.unknown    72.280218  POS
+## 5             month.mar    71.946272  NEG
+## 
+## ---
+##                                 names coefficients sign
+## 57              qualification.unknown     0.134024  POS
+## 58                          month.may     0.000000  POS
+## 59                   location.country     0.000000  POS
+## 60                  location.suburban     0.000000  POS
+## 61 customer.satisfaction.Satisfactory     0.000000  POS
+## 62                    housing.unknown     0.000000  POS</code></pre>
+<pre class="r"><code>#h2o.predict(offer_glm, test_frame_offer)</code></pre>
+</div>
 </div>
 
 

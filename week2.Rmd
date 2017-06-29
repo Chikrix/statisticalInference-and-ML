@@ -9,6 +9,7 @@ In this exercise our objective will be building a model to identify customers mo
 I'll be using H~2~O flow, which runs on the browser and is designed to streamline the modelling process. It offers the same functionaliity as the non GUI H~2~O, as well as more insightful output. I'll be using the dataset I imported in the last step, but would import it again here for reproducibility reasons.  
 
 ```{r include = FALSE, echo=FALSE}
+library(downloader)
 library(h2o)
 library(tidyverse)
 ```
@@ -24,7 +25,7 @@ In the previous exercise on H~2~O Flow, I created a neural net and GBM model, wh
 
 ### Upload file, and explore   
 
-```{r cache=TRUE, warning=FALSE, include=FALSE}
+```{r warning=FALSE, include=FALSE}
 # dataUrl = "https://raw.githubusercontent.com/QUT-BDA-MOOC/FLbigdataStats/master/bank_customer_data.csv"
 # download.file(url <- dataUrl, destfile = "BankCustomerData.csv")
 user_data <- h2o.uploadFile("BankCustomerData.csv", destination_frame = "", parse = T, header = T,
@@ -32,7 +33,7 @@ user_data <- h2o.uploadFile("BankCustomerData.csv", destination_frame = "", pars
                                    parse_type = "CSV" )
 ```
 
-``` {r warning=FALSE, cache=TRUE}
+``` {r warning=FALSE}
 summary(user_data)
 class(user_data)
 head(user_data)
@@ -58,8 +59,8 @@ test_frame_offer <- split_frame_offer[[2]]
 outcomeIndex = getColumnIndex(frame_column_names_offer, "y")
 predictorsIndices <- (1:length(frame_column_names_offer))[-outcomeIndex]
 
-offer_glm <- h2o.glm(x=predictorsIndices, y = outcomeIndex, training_frame = train_frame, 
-                     validation_frame = test_frame, max_iterations = 100, solver = "L_BFGS", 
+offer_glm <- h2o.glm(x=predictorsIndices, y = outcomeIndex, training_frame = train_frame_offer, 
+                     validation_frame = test_frame_offer, max_iterations = 100, solver = "L_BFGS", 
                      family = "binomial", alpha = 1, intercept = T)
                       
 
@@ -71,9 +72,6 @@ test_frame_call <- split_frame_call[[2]]
 (outcomeIndex = getColumnIndex(frame_column_names_call, "length"))
 (predictorsIndices <- (1:length(frame_column_names_call))[-outcomeIndex])
 
-boxplot(log((as.vector(train_frame_call$length)))) 
-hist(log((as.vector(train_frame_call$length))))
-mean(as.vector(train_frame_call$length))
 # could normalized the values before this normalizing
 call_glm <- h2o.glm(x=predictorsIndices, y = outcomeIndex, training_frame = train_frame_call, 
                     validation_frame = test_frame_call,max_iterations = 100, solver = "L_BFGS", 
@@ -82,6 +80,9 @@ call_glm <- h2o.glm(x=predictorsIndices, y = outcomeIndex, training_frame = trai
 summary(offer_glm)
 summary(call_glm)
 
-```
+# making the predictions, should use an appropriate data set, not this ones used for validation in training
+h2o.predict(call_glm, test_frame_call)
+h2o.predict(offer_glm, test_frame_offer)
 
+```
 
